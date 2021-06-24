@@ -1,0 +1,13 @@
+[Unit]
+Description=mountToServers
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash ~/Desktop/timp/fastq-automation/mountToServers.sh
+Restart=on-failure
+RestartSecs= 300
+
+[Install]
+WantedBy=default.target

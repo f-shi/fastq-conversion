@@ -1,0 +1,14 @@
+[Unit]
+Description=takeMeToBigBird
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 45
+ExecStart=python3 home/mecore/Desktop/timp/fastq-automation/takeMeToBigBird/takeMeToBigBird.py
+Restart=on-failure
+RestartSec=300
+
+[Install]
+WantedBy=default.target
