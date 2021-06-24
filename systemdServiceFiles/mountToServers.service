@@ -5,9 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash ~/Desktop/timp/fastq-automation/mountToServers.sh
+ExecStart=/bin/bash /home/mecore/Desktop/timp/fastq-automation/systemdServiceFiles/mountToServers.sh
 Restart=on-failure
-RestartSecs= 300
+RestartSec= 300
 
 [Install]
 WantedBy=default.target
