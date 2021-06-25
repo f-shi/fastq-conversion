@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStartPre=/bin/sleep 45
-ExecStart=python3 home/mecore/Desktop/timp/fastq-automation/takeMeToBigBird/takeMeToBigBird.py
+ExecStart=python3 home/mecore/Desktop/timp/fastq-automation/src/takeMeToBigBird/takeMeToBigBird.py
 Restart=on-failure
 RestartSec=300
 

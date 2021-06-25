@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, date
 import emailSender.emailSender as EM
 
-autoPath = "/home/mecore/Desktop/timp/fastq-automation/"
+autoPath = "/home/mecore/Desktop/timp/src/fastq-automation/"
 keepPath = "/run/user/1000/gvfs/smb-share:server=heisenberg.local,share=ngs_raw/"
 bigBirdPath = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/"
 
@@ -53,7 +53,8 @@ def bcl2fastqRun ( myRun ):
 	successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
 	if successOrNot.returncode == 0:
-		successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+		takeMeToBigBirdLogger(1, "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES" % myRun["Path"], 1)
+		successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"], "--barcode-mismatches", "0", "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
 	bcl2fastqCheck.close()
 
@@ -154,7 +155,7 @@ def fastQCRunner ( myRun ):
 	bcl2fastqCheck = open(os.path.join(myRun["Path"], "bcl2fastqCheck.txt"), 'a+')
 
 	takeMeToBigBirdLogger(1, "Running FastQC and multiQC...", 1)
-	subprocess.run(["/bin/bash", "/home/mecore/Desktop/timp/fastq-automation/fastQCRunner.sh", myRun["outputFolderLocation"], myRun["runName"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+	subprocess.run(["/bin/bash", "/home/mecore/Desktop/timp/fastq-automation/src/fastQCRunner.sh", myRun["outputFolderLocation"], myRun["runName"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
 	takeMeToBigBirdLogger(0, "FastQC and multiQC done!", 1)
 	
@@ -255,7 +256,7 @@ def main():
 		
 		for dirName in ngsRawFolders:
 			
-			subjectRun = {"Path": dirName, "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputSuccess":""}
+			subjectRun = {"Path": dirName, "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[]}
 			slashIndex = [i for i, char in enumerate(dirName) if char == "/"]
 			subjectRun["folderName"] = dirName[slashIndex[-1]+1:]
 			

@@ -10,7 +10,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.message import EmailMessage
 
-bigBirdPathTest = "/home/mecore/Desktop/timp/automation/testfolder_site/fakeBigBird/"
 bigBirdPath = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/"
 subjectRun = {"Path": "", "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":""}
 

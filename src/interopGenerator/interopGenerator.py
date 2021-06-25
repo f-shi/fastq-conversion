@@ -2,7 +2,7 @@ import os
 import matplotlib.pyplot as plt
 from interop import py_interop_plot, py_interop_run_metrics, py_interop_run
 
-run_folder = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/FANGTEST02/210528_A01113_0024_AH2JMGDRXY/"
+run_folder = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/"
 
 def qscoreHistogram( inputString ):
 
@@ -72,15 +72,34 @@ def qscoreHeatmap( inputString ):
 	
 	return plt
 
+def errorExtraction( inputString ):
 
+	run_folder = inputString
+	
+	run_metrics = py_interop_run_metrics.run_metrics()
+	valid_to_load = py_interop_run.uchar_vector(py_interop_run.MetricCount, 0)
+	
+	valid_to_load[py_interop_run.Error]=1
+	
+	run_metrics.read(run_folder, valid_to_load)
+	
+	error_metrics = run_metrics.error_metric_set()
+	
+	all_error_metrics = error_metrics.metrics()
+	
+	print(all_error_metrics[0].id())
+	
+	return
 
 def main():
-
 	
+	errorExtraction(run_folder)
+	
+	'''
 	qscoreHistogramActual = qscoreHistogram(run_folder)
 	qscoreHistogramActual.show()
 	'''
-	
+	'''
 	qscoreHeatmapActual = qscoreHeatmap(run_folder)
 	qscoreHeatmapActual.show()
 	'''

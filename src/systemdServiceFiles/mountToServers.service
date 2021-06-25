@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /home/mecore/Desktop/timp/fastq-automation/systemdServiceFiles/mountToServers.sh
+ExecStart=/bin/bash /home/mecore/Desktop/timp/fastq-automation/src/systemdServiceFiles/mountToServers.sh
 Restart=on-failure
 RestartSec= 300
 
