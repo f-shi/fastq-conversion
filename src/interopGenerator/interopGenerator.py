@@ -37,8 +37,8 @@ def axFormatter(ax):
 	ax.spines['right'].set_visible(False)
 	#ax.spines['left'].set_visible(False)
 	
-	#ax.set_facecolor("#F9E8DB")
-	ax.set_facecolor("#f7F0eb")
+	ax.set_facecolor("#F9E8DB")
+	#ax.set_facecolor("#f7F0eb")
 	ax.grid(color="white")
 	ax.set_axisbelow(True)
 	
@@ -78,7 +78,7 @@ def basePercent( inputString ):
 	plt.xlabel("Cycle", fontsize=20)
 	plt.title("Data by Cycle: %Base", fontsize=25)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "4_percent_base_by_cycle.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
+	plt.savefig(os.path.join(inputString, "Interop_Images", "4_percent_base_by_cycle.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, frameon=True)
 	plt.clf()
 	
 	return
@@ -122,8 +122,8 @@ def densityPerLane( inputString ):
 	for line in ax1.get_lines():
 		line.set_color("black")
 	
-	fig.text(0.91, 0.85, "Cluster Density", backgroundcolor="#481C48", color='white', size=15)
-	fig.text(0.91, 0.80, "Cluster Density (Passed Filter)", backgroundcolor="#EE533F", color='white', size=15)
+	fig.text(0.3, 0.01, "Cluster Density (Overall)", backgroundcolor="#481C48", color='white', size=15)
+	fig.text(0.6, 0.01, "Cluster Density (Passed Filter)", backgroundcolor="#EE533F", color='white', size=15)
 		
 	ax1 = axFormatter(ax1)
 	fig = figFormatter(fig)
@@ -133,7 +133,7 @@ def densityPerLane( inputString ):
 	plt.xlabel("Lane", fontsize=20)
 	plt.title("Data by Lane: Cluster Density", fontsize=25)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "2_density_per_lane.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
+	plt.savefig(os.path.join(inputString, "Interop_Images", "2_density_per_lane.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	
 	plt.clf()
 	
@@ -174,7 +174,7 @@ def errorExtraction( inputString ):
 	plt.xlabel("Cycle", fontsize=20)
 	plt.title("Data by Cycle: Error Rate", fontsize=25)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "5_error_rate.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
+	plt.savefig(os.path.join(inputString, "Interop_Images", "5_error_rate.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	
 	plt.clf()
 	
@@ -213,7 +213,7 @@ def indexPercentRead( inputString ):
 	ax = axFormatter(ax)
 	fig = figFormatter(fig)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "6_index_percent_read.jpg"), dpi = 200, bbox_inches = 'tight')
+	plt.savefig(os.path.join(inputString, "Interop_Images", "6_index_percent_read.jpg"), dpi = 200, bbox_inches = 'tight', edgecolor='black')
 	plt.clf()
 	
 	return
@@ -327,12 +327,12 @@ def qscoreHistogram( inputString ):
 	
 	plt.xlabel(bar_data.xyaxes().x().label(), fontsize=20)
 	plt.ylabel(bar_data.xyaxes().y().label(), fontsize=20)
-	plt.title(bar_data.title(), fontsize=25)
+	plt.title("Q Score Distribution Chart", fontsize=25)
 	plt.ylim([bar_data.xyaxes().y().min(), bar_data.xyaxes().y().max()])
 	plt.xlim([bar_data.xyaxes().x().min(), bar_data.xyaxes().x().max()])
 	
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "1_qscore_histogram.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
+	plt.savefig(os.path.join(inputString, "Interop_Images", "1_qscore_histogram.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	
 	plt.clf()
 	
@@ -415,7 +415,7 @@ def qscoreHeatmap( inputString ):
 	plt.xticks(rotation=45)
 	plt.text(-4, 317.5, "40.0", color='black')
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "3_qscore_heatmap.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
+	plt.savefig(os.path.join(inputString, "Interop_Images", "3_qscore_heatmap.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	plt.clf()
 	
 	return

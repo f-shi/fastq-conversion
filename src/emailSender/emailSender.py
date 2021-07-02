@@ -10,7 +10,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.mime.image import MIMEImage
 from email.message import EmailMessage
-import interopGenerator.interopGenerator as ig
 
 bigBirdPath = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/"
 subjectRun = {"Path": "", "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":""}
@@ -56,7 +55,7 @@ def emailDrafter( myRun, imageLocation ):
 			BXC.BODY(
 				BXC.P(BXC.I("The run %s, which was run on %s, has been processed.\n\n\n" % (myRun["runName"], myRun["runInstrument"])), 
 				BXC.BR(), BXC.I("You should be able to find the folder on Big Bird."),
-				BXC.BR(), BXC.I("Please see the drafted email for customers below:")),
+				BXC.BR(), BXC.I("Please see the drafted email for customers below:")), BXC.BR(),
 				
 				BXC.P("Hello,",
 				BXC.BR(),
@@ -75,18 +74,21 @@ def emailDrafter( myRun, imageLocation ):
 	interopPictures = [ f.path for f in os.scandir(imageLocation) if not f.is_dir()]
 	
 	image_html = []
+	image_names = []
 	
 	for image_location in interopPictures:
 		
 		slashIndex = [i for i, char in enumerate(image_location) if char == "/"]
-		image_name = image_location[slashIndex[-1]+1:-4]
+		image_names.append(image_location[slashIndex[-1]+1:-4])
+	
+	image_names.sort()
 		
-		
+	for image_name in image_names:
 		
 		html = BXC.HTML(
 			BXC.BODY(
 				BXC.IMG(src="cid:%s" % image_name, alt=image_name),
-				BXC.BR(),
+				BXC.BR(), BXC.BR(), BXC.BR()
 			)
 		)
 		
@@ -160,6 +162,7 @@ def emailSender(onePath, myRun, imageLocation):
 	msg.attach(emailDrafted)
 	
 	interopPictures = [ f.path for f in os.scandir(imageLocation) if not f.is_dir()]
+	
 	for image_location in interopPictures:
 		
 		slashIndex = [i for i, char in enumerate(image_location) if char == "/"]
@@ -197,7 +200,7 @@ def emailSender(onePath, myRun, imageLocation):
 		server.login("molecular.evolution@outlook.com", password)
 		server.send_message(msg)
 	
-	
+	return
 	
 def HTMLFileParse ( str1 ):
 
@@ -230,7 +233,7 @@ def multiQCScraper ( myRun ):
 	return specialTable
 """
 	
-def emailSendingWrapper( myRun ):
+def emailSendingWrapper( myRun, imageLocation ):
 	
 	folderPath = os.path.join(myRun["outputFolderLocation"], "Reports",)
 	
@@ -244,7 +247,6 @@ def emailSendingWrapper( myRun ):
 	clear_old_draft = open(emailPath, "w")
 	clear_old_draft.close()
 	
-	imageLocation = ig.interopGenerator(myRun)
 	emailLocation = emailDrafter(myRun, imageLocation)
 	emailSender(emailLocation, myRun, imageLocation)
 	
@@ -258,7 +260,8 @@ def main():
 	'''
 	subjectRunTest = {"Path": "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/", "runName": "EH08", "runInstrument":"NovaSeq", "FlowcellID":"H5KWGDRXY", "outputFolderLocation":""}
 	subjectRunTest["outputFolderLocation"] = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/FASTQ_Output/"
-	emailSendingWrapper(subjectRunTest)
+	imageLocation = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/Interop_Images/"
+	emailSendingWrapper(subjectRunTest, imageLocation)
 	
 	
 	"""
