@@ -9,7 +9,7 @@ from mpl_toolkits import axes_grid1
 
 #run_folder = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NextSeq/MW56R/MW56R-207921767/"
 
-run_folder = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/"
+#run_folder = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/"
 
 #run_folder = "/run/user/1000/gvfs/smb-share:server=heisenberg.local,share=ngs_raw/ARCHIVE/NextSeq/GG52/GG52-208826650/"
 
@@ -78,7 +78,7 @@ def basePercent( inputString ):
 	plt.xlabel("Cycle", fontsize=20)
 	plt.title("Data by Cycle: %Base", fontsize=25)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "4_percent_base_by_cycle.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, frameon=True)
+	plt.savefig(os.path.join(inputString, "Interop_Images", "4_percent_base_by_cycle.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
 	plt.clf()
 	
 	return
@@ -527,7 +527,7 @@ def interopGenerator(myRun):
 
 def main():
 	
-	subjectRunTest = {"Path": "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/", "runName": "EH08", "runInstrument":"NovaSeq", "FlowcellID":"H5KWGDRXY", "outputFolderLocation":""}
+	subjectRunTest = {"Path": "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NextSeq/MW59/210617_NB501662_0302_AHGTMNBGXJ/", "runName": "MW59", "runInstrument":"NextSeq", "FlowcellID":"AHGTMNBGXJ", "outputFolderLocation":""}
 	interopGenerator(subjectRunTest)
 	
 	return

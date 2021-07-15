@@ -49,7 +49,10 @@ def bcl2fastqHTMLScraper ( myRun ):
 	
 def emailDrafter( myRun, imageLocation ): 
 	
-	tableBcl2fastq = bcl2fastqHTMLScraper(myRun)
+	try:
+		tableBcl2fastq = bcl2fastqHTMLScraper(myRun)
+	except:
+		tableBcl2fastq = ["Interop summaries not present."]
 	
 	myEmail1 = BXC.HTML(
 			BXC.BODY(
@@ -71,30 +74,38 @@ def emailDrafter( myRun, imageLocation ):
 			)
 		)
 	
-	interopPictures = [ f.path for f in os.scandir(imageLocation) if not f.is_dir()]
-	
 	image_html = []
 	image_names = []
 	
-	for image_location in interopPictures:
-		
-		slashIndex = [i for i, char in enumerate(image_location) if char == "/"]
-		image_names.append(image_location[slashIndex[-1]+1:-4])
+	if os.path.isdir(imageLocation):
 	
-	image_names.sort()
+		interopPictures = [ f.path for f in os.scandir(imageLocation) if not f.is_dir()]
 		
-	for image_name in image_names:
+		for image_location in interopPictures:
+			
+			slashIndex = [i for i, char in enumerate(image_location) if char == "/"]
+			image_names.append(image_location[slashIndex[-1]+1:-4])
 		
-		html = BXC.HTML(
-			BXC.BODY(
-				BXC.IMG(src="cid:%s" % image_name, alt=image_name),
-				BXC.BR(), BXC.BR(), BXC.BR()
+		image_names.sort()
+			
+		for image_name in image_names:
+			
+			html = BXC.HTML(
+				BXC.BODY(
+					BXC.IMG(src="cid:%s" % image_name, alt=image_name),
+					BXC.BR(), BXC.BR(), BXC.BR()
+				)
 			)
-		)
-		
-		
-		
-		image_html.append(html)
+			image_html.append(html)
+	else:
+		error_image = BXC.HTML(
+			BXC.BODY(
+				BXC.P("Image generation failed.")
+				)
+			)
+			
+		image_html.append(error_image)
+	
 	
 	myEmail2 = BXC.HTML(
 			BXC.BODY(
@@ -161,27 +172,33 @@ def emailSender(onePath, myRun, imageLocation):
 	
 	msg.attach(emailDrafted)
 	
-	interopPictures = [ f.path for f in os.scandir(imageLocation) if not f.is_dir()]
-	
-	for image_location in interopPictures:
+	try:
+		interopPictures = [ f.path for f in os.scandir(imageLocation) if not f.is_dir()]
 		
-		slashIndex = [i for i, char in enumerate(image_location) if char == "/"]
-		image_name = image_location[slashIndex[-1]+1:-4]
+		for image_location in interopPictures:
+			
+			slashIndex = [i for i, char in enumerate(image_location) if char == "/"]
+			image_name = image_location[slashIndex[-1]+1:-4]
+			
 		
+			with open(image_location, 'rb') as fp:
+				img = MIMEImage(fp.read())
+			img.add_header("Content-ID", image_name)
+			msg.attach(img)
+	except:
+		pass
 	
-		with open(image_location, 'rb') as fp:
-			img = MIMEImage(fp.read())
-		img.add_header("Content-ID", image_name)
-		msg.attach(img)
-
-	fileName = os.path.join(myRun["outputFolderLocation"], "MultiQC_results", "multiqc_report.html")
-	filesRealName = "MultiQC_Report_%s.html" % myRun["runName"]
-	
-	with open(fileName, "rb") as attachment:
-		multiQCReport = MIMEApplication(attachment.read())
-		multiQCReport.add_header('Content-Disposition', 'attachment', filename=filesRealName)
-	
-	msg.attach(multiQCReport)
+	try:
+		fileName = os.path.join(myRun["outputFolderLocation"], "MultiQC_results", "multiqc_report.html")
+		filesRealName = "MultiQC_Report_%s.html" % myRun["runName"]
+		
+		with open(fileName, "rb") as attachment:
+			multiQCReport = MIMEApplication(attachment.read())
+			multiQCReport.add_header('Content-Disposition', 'attachment', filename=filesRealName)
+		
+		msg.attach(multiQCReport)
+	except:
+		pass
 	
 	recipientEmails = ["fangshi75@gmail.com", "fangshi@gatech.edu"]
 	ccEmails = ["fangshi90@gmail.com"]
@@ -233,8 +250,10 @@ def multiQCScraper ( myRun ):
 	return specialTable
 """
 	
-def emailSendingWrapper( myRun, imageLocation ):
+def emailSendingWrapper( myRun ):
 	
+	
+	imageLocation = os.path.join(myRun["Path"], "Interop_Images", "")
 	folderPath = os.path.join(myRun["outputFolderLocation"], "Reports",)
 	
 	try:
@@ -258,11 +277,12 @@ def main():
 	print(lxml.html.tostring(outd, pretty_print = True, encoding = "unicode"))
 	
 	'''
-	subjectRunTest = {"Path": "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/", "runName": "EH08", "runInstrument":"NovaSeq", "FlowcellID":"H5KWGDRXY", "outputFolderLocation":""}
-	subjectRunTest["outputFolderLocation"] = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/FASTQ_Output/"
-	imageLocation = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/Interop_Images/"
-	emailSendingWrapper(subjectRunTest, imageLocation)
-	
+	'''
+	subjectRunTest = {"Path": "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NextSeq/MW59/210617_NB501662_0302_AHGTMNBGXJ", "runName": "MW59", "runInstrument":"NextSeq", "FlowcellID":"AHGTMNBGXJ", "outputFolderLocation":""}
+	subjectRunTest["outputFolderLocation"] = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NextSeq/MW59/MEC_FASTQ_Files_MW59/"
+	#imageLocation = "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NovaSeq/EH08/Interop_Images/"
+	emailSendingWrapper(subjectRunTest)
+	'''
 	
 	"""
 	subjectRunTest = {"Path": "", "runName": "EH08", "runInstrument":"NovaSeq", "FlowcellID":"H5KWGDRXY"}

@@ -8,6 +8,7 @@ import errno
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, date
 import emailSender.emailSender as EM
+import interopGenerator.interopGenerator as IG
 
 autoPath = "/home/mecore/Desktop/timp/src/fastq-automation/"
 keepPath = "/run/user/1000/gvfs/smb-share:server=heisenberg.local,share=ngs_raw/"
@@ -25,7 +26,7 @@ def bcl2fastqRun ( myRun ):
 	myRun = sampleSheetReader(myRun)
 	myRun = runInfoReader(myRun)
 	
-	archiveFolderPath = os.path.join(keepPath,"ARCHIVE", myRun["runInstrument"], myRun["runName"])
+	archiveFolderPath = os.path.join(keepPath,"ARCHIVE", "Fangs_Special_Test_Folder", myRun["runInstrument"], myRun["runName"])
 	
 	try:
     		os.mkdir(archiveFolderPath)
@@ -38,8 +39,8 @@ def bcl2fastqRun ( myRun ):
 	
 	#shutil.copytree(myRun["Path"], os.path.join(keepPath, "ARCHIVE", myRun["runInstrument"], myRun[""""))
 	subprocess.run(["cp", "-r","-v", myRun["Path"], archiveFolderPath], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
-	
-	myRun["outputFolderLocation"] = os.path.join(keepPath,"MEC_FASTQ_Generation_" + myRun["runName"],"")
+
+	myRun["outputFolderLocation"] = os.path.join(myRun["Path"],"MEC_FASTQ_Files_" + myRun["runName"], "")
 	
 	try:
     		os.mkdir(myRun["outputFolderLocation"])
@@ -50,21 +51,39 @@ def bcl2fastqRun ( myRun ):
 	
 	takeMeToBigBirdLogger(1, "STARTING BCL2FASTQ RUN on %s" % myRun["Path"], 1)
 	
-	successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+	successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
-	if successOrNot.returncode == 0:
-		takeMeToBigBirdLogger(1, "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES" % myRun["Path"], 1)
-		successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"], "--barcode-mismatches", "0", "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+	if successOrNot.returncode != 0:
+		takeMeToBigBirdLogger(1, "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES", 1)
+		successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"],  "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "--barcode-mismatches", "0", "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
 	bcl2fastqCheck.close()
 
 	if successOrNot.returncode == 0:
 		takeMeToBigBirdLogger(0, "THE RUN FINISHED SUCCESSFULLY", 1)
-		fastQCRunner( myRun )
-		directoryMover(myRun)
-		EM.emailSendingWrapper(myRun)
+		
+		try:
+			fastQCRunner( myRun )
+		except:
+			takeMeToBigBirdLogger(0, "fastQCRunner failed", 2)
+		
+		try:
+			IG.interopGenerator(myRun)
+		except:
+			takeMeToBigBirdLogger(0, "interopGenerator failed", 2)
+		
+		try:
+			directoryMover(myRun)
+		except:
+			takeMeToBigBirdLogger(0, "directoryMover failed", 2)
+		
+		try:
+			EM.emailSendingWrapper(myRun)
+		except:
+			takeMeToBigBirdLogger(0, "EmailSender failed", 2)
+		
 	else:
-		takeMeToBigBirdLogger(0, "THE RUN FAILED!", 1)
+		takeMeToBigBirdLogger(0, "THE RUN FAILED!", 2)
 	
 	return
 
@@ -81,7 +100,7 @@ def directoryCheck ( myRun ):
 	
 	
 
-	directoryCopyBool = timeDiff.total_seconds()/60.0 >= 0 and "CopyComplete.txt" in folderFiles
+	directoryCopyBool = timeDiff.total_seconds()/60.0 >= 3 and "CopyComplete.txt" in folderFiles
 	directoryRunBool = "RunInfo.xml" in folderFiles and "SampleSheet.csv" in folderFiles and "bcl2fastqCheck.txt" not in folderFiles
 	directoryFailBool = "lastCheckFailed.txt" not in folderFiles
 	directoryBool = directoryCopyBool and directoryRunBool and directoryFailBool
@@ -90,8 +109,9 @@ def directoryCheck ( myRun ):
 	if directoryBool:
 		takeMeToBigBirdLogger(0, "Checked %s: can be run!" % pth, 1)
 	elif not directoryFailBool:
+		takeMeToBigBirdLogger(0, "Checked %s: A previous run with this folder failed. Please see lastCheckFailed.txt for more details." % pth, 1)
 		return directoryBool
-	elif timeDiff.total_seconds()/60.0 < 0:
+	elif timeDiff.total_seconds()/15.0 < 3:
 		takeMeToBigBirdLogger(0, "Checked %s: Modified %s minutes ago so may still be uploading" %(pth, str(round(timeDiff.total_seconds()/60.0))), 1)
 	elif not directoryRunBool:
 		if "bcl2fastqCheck.txt" in folderFiles:
@@ -131,17 +151,25 @@ def directoryMover ( myRun ):
 	
 	#print(p2)
 	
-	moveCheck1 = subprocess.run(["scp", "-r","-v", myRun["Path"], p2])
 	moveCheck2 = subprocess.run(["scp", "-r","-v", myRun["outputFolderLocation"], p2])
+	if moveCheck2 == 0:
+		try:
+			shutil.rmtree(myRun["outputFolderLocation"])
+		except:
+			pass
+	
+	moveCheck1 = subprocess.run(["scp", "-r","-v", myRun["Path"], p2])
+
 	moveCheck = moveCheck1.returncode == 0 and moveCheck2.returncode == 0
 	
 		
 	if moveCheck:
-	
-		takeMeToBigBirdLogger(0, "The directory should be in Big Bird at %s" % myRun["Path"], 2)
 		
 		myRun["Path"] = os.path.join(p2, myRun["folderName"], "")
 		myRun["outputFolderLocation"] = os.path.join(p2, "MEC_FASTQ_Generation_" + myRun["runName"], "")
+		oldFolder = os.path.join(myRun["Path"], "MEC_FASTQ_Generation_" + myRun["runName"], "")
+		takeMeToBigBirdLogger(0, "The directory should be in Big Bird at %s" % myRun["Path"], 2)
+		
 		shutil.rmtree(p1)
 		shutil.rmtree(p3)
 	
