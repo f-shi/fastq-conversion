@@ -1,0 +1,13 @@
+[Unit]
+Description=cifs mount script bigbird
+Requires=network-online.target
+After=network-online.service
+
+[Mount]
+What=//128.61.133.14/ngs
+Where=/mnt/bigbird
+Options=credentials=/home/mecore/Desktop/timp/fastq-automation/src/systemdServiceFiles/.cred,gid=mecore,uid=mecore,file_mode=0777,dir_mode=0777
+Type=cifs
+
+[Install]
+WantedBy=multi-user.target

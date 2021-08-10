@@ -1,0 +1,13 @@
+[Unit]
+Description=cifs mount script heisenberg
+Requires=network-online.target
+After=network-online.service
+
+[Mount]
+What=//128.61.133.175/ngs_raw
+Where=/mnt/heisenberg
+Options=uid=mecore,credentials=/home/mecore/Desktop/timp/fastq-automation/src/systemdServiceFiles/.cred,uid=mecore,gid=mecore,dir_mode=0755,file_mode=0755
+Type=cifs
+
+[Install]
+WantedBy=multi-user.target
