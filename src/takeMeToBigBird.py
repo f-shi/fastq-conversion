@@ -24,11 +24,11 @@ def directoryCheck ( myRun ):
 	
 	#print("I'm checking %s" % pth)
 	
-	directoryCopyBool = "CopyComplete.txt" in folderFiles
+	directoryCopyBool = "CopyComplete.txt" in folderFiles or "RTAComplete.txt" in folderFiles
 	directoryRunBool = "RunInfo.xml" in folderFiles and "SampleSheet.csv" in folderFiles and "bcl2fastqCheck.txt" not in folderFiles
 	directoryFailBool = "lastCheckFailed.txt" not in folderFiles
 	directoryTimeBool = True
-	directoryBool = directoryCopyBool and directoryRunBool and directoryFailBool
+	directoryBool = directoryCopyBool and directoryRunBool
 	
 	
 	if directoryBool:
@@ -40,33 +40,46 @@ def directoryCheck ( myRun ):
 			directoryBool = False
 			directoryTimeBool = False
 	
+	#textName = os.path.join(pth, "lastCheckFailed.txt")
 	
 	if directoryBool:
 		takeMeToBigBirdLogger(0, "Checked %s: can be run!" % pth, 1)
-	elif not directoryFailBool:
-		takeMeToBigBirdLogger(0, "Checked %s: A previous run with this folder failed. Please see lastCheckFailed.txt for more details." % pth, 1)
+	elif not directoryCopyBool:
+		takeMeToBigBirdLogger(0, "Checked %s: CopyComplete.txt not present yet." % pth, 1)
 		return directoryBool
+
 	elif not directoryTimeBool:
 		takeMeToBigBirdLogger(0, "Checked %s: Modified %s minutes ago so may still be uploading" %(pth, str(round(timeDiff.total_seconds()/60.0))), 1)
+		return directoryBool
 	elif not directoryRunBool:
+		#takeMeToBigBirdLogger(0, "Checked %s: Missing a necessary file!" % pth, 1)
 		if "bcl2fastqCheck.txt" in folderFiles:
 			takeMeToBigBirdLogger(0, "Checked %s: bcl2fastqCheck file is present!" % pth, 1)
+			return directoryBool
+		
 		else:
 			textName = os.path.join(myRun["Path"], "lastCheckFailed.txt")
 			if "RunInfo.xml" not in folderFiles:
 				takeMeToBigBirdLogger(0, "Checked %s: no RunInfo.xml" % pth, 1)
 				
-				with open(textName, "a+") as textFile:
-					textFile.write("NO RUNINFO.XML")
+				if directoryFailBool:
+					EM.errorSender("Checked %s: no RunInfo.xml" % pth, {"runName":pth})
+					with open(textName, "a+") as textFile:
+						textFile.write("NO RUNINFO.XML")
 				
 			
 			elif "SampleSheet.csv" not in folderFiles:
-				takeMeToBigBirdLogger(0, "Checked %s: missing necessary files for run" % pth, 1)
+				takeMeToBigBirdLogger(0, "Checked %s: No sample sheet" % pth, 1)
 				
-				with open(textName, "a+") as textFile:
-					textFile.write("NO SAMPLESHEET.CSV")
+				if directoryFailBool:
+					EM.errorSender("Checked %s: no sampleSheet.csv" % pth, {"runName":pth})
+					with open(textName, "a+") as textFile:
+						textFile.write("NO SAMPLESHEET.CSV")
+		
+		
+		#return directoryBool
 	else:
-		takeMeToBigBirdLogger(0, "Checked %s: won't run because of CopyComplete.txt is not present!" % pth, 1)
+		takeMeToBigBirdLogger(0, "Checked %s: a mysterious issue has arisen." % pth, 1)
 	
 
 	return directoryBool
@@ -106,13 +119,16 @@ def main():
 		
 		for dirName in ngsRawFolders:
 			
-			subjectRun = {"Path": dirName, "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[]}
+			subjectRun = {"Path": dirName, "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[], "libraryType":"UNKNOWN"}
 			slashIndex = [i for i, char in enumerate(dirName) if char == "/"]
 			subjectRun["folderName"] = dirName[slashIndex[-1]+1:]
 			
 			if dirName == os.path.join(keepPath, "ARCHIVE"):
 				continue
 			elif dirName == os.path.join(keepPath, "COVID"):
+				continue
+			elif dirName == os.path.join(keepPath, "MyRun"):
+				shutil.rmtree(dirName)
 				continue
 			elif directoryCheck(subjectRun):
 			
@@ -123,29 +139,39 @@ def main():
 		
 					try:
 						BR.fastQCRunner( subjectRun )
-					except:
-						takeMeToBigBirdLogger(0, "fastQCRunner failed", 2)
+					except Exception as e:
+						takeMeToBigBirdLogger(0, "fastQCRunner failed: %s" % str(e), 2)
+						EM.errorSender("fastQCRunner failed: %s" % str(e), subjectRun)
 					
 					try:
 						takeMeToBigBirdLogger(0, "Generating Interop images...", 1)
 						IG.interopGenerator(subjectRun)
 					except Exception as e:
 						takeMeToBigBirdLogger(0, "interopGenerator failed: %s" % str(e), 2)
+						EM.errorSender("interopGenerator failed: %s" % str(e), subjectRun)
 					else:
 						takeMeToBigBirdLogger(0, "interopGenerator succeeded", 2)
+					
+					try:
+						BR.archiveMover(subjectRun)
+					except Exception as e:
+						takeMeToBigBirdLogger(0, "Moving to archive failed: %s" % str(e), 2)
+						EM.errorSender("archiveMover failed: %s" % str(e), subjectRun)
 					
 					try:
 						takeMeToBigBirdLogger(0, "Drafting email...", 1)
 						EM.emailSendingWrapper(subjectRun)
 					except Exception as e:
 						takeMeToBigBirdLogger(0, "emailSender failed: %s" % str(e), 2)
+						EM.errorSender("Could not send email: %s" % str(e), subjectRun)
 					else:
-						takeMeToBigBirdLogger(0, "emailSender succeeded succeeded", 2)
+						takeMeToBigBirdLogger(0, "emailSender succeeded", 2)
 					
 					try:
-						BR.directoryMover(subjectRun)
+						BR.bigBirdMover(subjectRun)
 					except Exception as e:
 						takeMeToBigBirdLogger(0, "directoryMover failed: %s" % str(e), 2)
+						EM.errorSender("directoryMover failed: %s" % str(e), subjectRun)
 					
 				else:
 					takeMeToBigBirdLogger(0, "THE RUN FAILED!", 2)

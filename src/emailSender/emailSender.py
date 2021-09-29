@@ -200,12 +200,12 @@ def emailSender(onePath, myRun, imageLocation):
 	except:
 		pass
 	
-	recipientEmails = ["fangshi75@gmail.com", "fangshi@gatech.edu"]
+	recipientEmails = ["naima.djeddar@ibb.gatech.edu", "fangshi@gatech.edu"]
 	ccEmails = ["fangshi90@gmail.com"]
 	msg["Subject"] = 'Sequencing Results Available: ' + myRun["runName"]
 	msg["From"] = "molecular.evolution@outlook.com"
 	msg["To"] = ','.join(recipientEmails)
-	msg["CC"] = ",".join(ccEmails)
+
 
 	port = 587
 	password = "MolEvol1@GT"
@@ -219,6 +219,35 @@ def emailSender(onePath, myRun, imageLocation):
 	
 	return
 	
+def errorSender(errorMessage, myRun):
+	
+	print(errorMessage)
+	
+	msg = EmailMessage()
+	msg.set_content(errorMessage)
+	
+	recipientEmails = ["fangshi90@gmail.com", "fangshi@gatech.edu"]
+	senderEmail = "molecular.evolution@outlook.com"
+	msg["Subject"] = 'Error: ' + myRun["runName"]
+	msg["From"] = "molecular.evolution@outlook.com"
+	msg["To"] = ','.join(recipientEmails)
+
+
+	port = 587
+	password = "MolEvol1@GT"
+	
+	message = "try this"
+	
+	context = ssl.create_default_context()
+	
+	with smtplib.SMTP("smtp.office365.com", port) as server:
+		server.starttls(context=context)
+		server.login("molecular.evolution@outlook.com", password)
+		server.send_message(msg)
+		server.quit()
+	
+	return	
+
 def HTMLFileParse ( str1 ):
 
 	r = lxml.html.parse(str1).getroot();
@@ -253,7 +282,7 @@ def multiQCScraper ( myRun ):
 def emailSendingWrapper( myRun ):
 	
 	
-	imageLocation = os.path.join(myRun["Path"], "Interop_Images", "")
+	imageLocation = os.path.join(myRun["Path"], "InterOp", "Interop_Images", "")
 	folderPath = os.path.join(myRun["outputFolderLocation"], "Reports",)
 	
 	try:
@@ -284,11 +313,10 @@ def main():
 	emailSendingWrapper(subjectRunTest)
 	'''
 	
-	"""
+	'''
 	subjectRunTest = {"Path": "", "runName": "EH08", "runInstrument":"NovaSeq", "FlowcellID":"H5KWGDRXY"}
-	emailLocation emailDrafter(myRun)
-	emailSender()
-	"""
+	errorSender("Ugh...failed", subjectRunTest)
+	'''
 	
 	"""
 	inDexh = "/home/mecore/Desktop/timp/automation/testfolder_site/html/HGNTLBGXJ/MW58/all/all/lane.html"

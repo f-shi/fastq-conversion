@@ -10,9 +10,9 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, date
 
 
-autoPath = "/home/mecore/Desktop/timp/src/fastq-automation/"
+autoPath = "/home/mecore/Desktop/timp/fastq-automation/src/"
 keepPath = "/mnt/heisenberg/"
-archivePath = "/mnt/heisenberg/ARCHIVE/Fangs_Special_Test_Folder/"
+archivePath = "/mnt/heisenberg/ARCHIVE/"
 bigBirdPath = "/mnt/bigbird/"
 
 def bcl2fastqRun ( myRun ):
@@ -48,7 +48,10 @@ def bcl2fastqRun ( myRun ):
 	bcl2fastqCheck = open(os.path.join(myRun["Path"], "bcl2fastqCheck.txt"), 'a+')
 	takeMeToBigBirdLogger(1, "STARTING BCL2FASTQ RUN on %s" % myRun["Path"], 1)
 	
-	successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+	if myRun["libraryType"] == "10x":
+		successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "8", "--minimum-trimmed-read-length", "8", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+	else:
+		successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
 	if successOrNot.returncode != 0:
 		takeMeToBigBirdLogger(1, "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES", 1)
@@ -58,7 +61,7 @@ def bcl2fastqRun ( myRun ):
 	
 	return successOrNot.returncode
 	
-def directoryMover ( myRun ):
+def bigBirdMover ( myRun ):
 	
 	takeMeToBigBirdLogger(1, "The directory is being taken to Big Bird", 1)
 	
@@ -67,32 +70,30 @@ def directoryMover ( myRun ):
 	p2 = os.path.join(bigBirdPath,myRun["runInstrument"],myRun["runName"], "")
 	p1 = myRun["Path"]
 	p3 = myRun["outputFolderLocation"]
+	archiveMovePath = os.path.join(archivePath, myRun["runInstrument"], myRun["runName"], "")
 
 	if not os.path.isdir(p2):
 		os.mkdir(p2)
 	
 	#print(p2)
 	
-	moveCheck2 = subprocess.run(["scp", "-r", myRun["outputFolderLocation"], p2])
-	moveCheck3 = subprocess.run(["scp", "-r", myRun["outputFolderLocation"], os.path.join(keepPath,"ARCHIVE", "Fangs_Special_Test_Folder", myRun["runInstrument"], myRun["runName"])])
-	moveCheck4 = subprocess.run(["scp", "-r", os.path.join(myRun["Path"], "Interop"), os.path.join(keepPath,"ARCHIVE", "Fangs_Special_Test_Folder", myRun["runInstrument"], myRun["runName"])])
-	
 	try:
-		archivePath = os.path.join(keepPath,"ARCHIVE", "Fangs_Special_Test_Folder", myRun["runInstrument"], myRun["runName"], "")
-		os.rename(os.path.join(archivePath, "Interop", ""), os.path.join(archivePath, "Interop_" + myRun["runName"], ""))
-		subprocess.run(["scp", "-r", os.path.join(archivePath, "Interop_"+myRun["runName"], ""), p2])
+		moveCheck1 = subprocess.run(["scp", "-r","-v", myRun["Path"], p2])
+		moveCheck2 = subprocess.run(["scp", "-r", myRun["outputFolderLocation"], p2])
+		moveCheck3 = subprocess.run(["scp", "-r", os.path.join(archiveMovePath, "Interop_"+myRun["runName"], ""), p2])
 	except:
 		pass
-	
+		
+
 	if moveCheck2.returncode == 0:
 		try:
-			shutil.rmtree(myRun["outputFolderLocation"])
+			shutil.rmtree(p3)
 		except:
 			pass
 	
-	moveCheck1 = subprocess.run(["scp", "-r","-v", myRun["Path"], p2])
 
-	moveCheck = moveCheck1.returncode == 0 and moveCheck2.returncode == 0
+
+	moveCheck = moveCheck1.returncode == 0 and moveCheck2.returncode == 0 and moveCheck3.returncode == 0
 	
 		
 	if moveCheck:
@@ -107,6 +108,32 @@ def directoryMover ( myRun ):
 	else:
 		takeMeToBigBirdLogger(0, "There was an issue moving the directory to Big Bird.", 2)
 	
+	return myRun
+
+def archiveMover (myRun) :
+	
+	takeMeToBigBirdLogger(0, "The FASTQ files are being added to the ARCHIVE on Heisenberg", 1)
+	
+	#p1 is run folder path
+	#p2 is run name
+	p1 = myRun["Path"]
+	p3 = myRun["outputFolderLocation"]
+
+	#if not os.path.isdir(p2):
+	#	os.mkdir(p2)
+	
+	#print(p2)
+	
+	
+	try:
+		archiveMovePath = os.path.join(archivePath, myRun["runInstrument"], myRun["runName"], "")
+		moveCheck3 = subprocess.run(["scp", "-r", myRun["outputFolderLocation"], archiveMovePath])
+		moveCheck4 = subprocess.run(["scp", "-r", os.path.join(myRun["Path"], "Interop"), archiveMovePath])
+		os.rename(os.path.join(archiveMovePath, "Interop", ""), os.path.join(archiveMovePath, "Interop_" + myRun["runName"], ""))
+		takeMeToBigBirdLogger(0, 'FASTQ Files are in ARCHIVE', 2)
+	except:
+		takeMeToBigBirdLogger(0, 'There was an issue moving the FASTQ files to the ARCHIVE on Heisenberg', 1)
+
 	return myRun
 
 def fastQCRunner ( myRun ):
@@ -125,7 +152,7 @@ def fastQCRunner ( myRun ):
 	
 	numbEr = 16
 
-	allFastqFiles = [ f.path for f in os.scandir(myRun["outputFolderLocation"]) if not f.is_dir() ]
+	allFastqFiles = [ f.path for f in os.scandir(os.path.join(myRun["outputFolderLocation"], myRun["runName"])) if not f.is_dir() ]
 	littleContainer = []
 	bigContainer = []
 
@@ -145,7 +172,7 @@ def fastQCRunner ( myRun ):
 		
 		command = ["fastqc", "-q", "--threads", str(numbEr + 8), "--outdir", Results]
 		commands = command + fastqFiles
-		
+	
 		subprocess.run(commands, stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
 	multiqcCommands = ["/home/mecore/.local/bin/multiqc", Results, "-o", os.path.join(myRun["outputFolderLocation"], "MultiQC_results")]
@@ -201,7 +228,7 @@ def sampleSheetReader ( myRun ):
 			sampleSheetArray.append(row)
 	
 	try:
-		tenXIndexCheck(sampleSheetArray, sampleSheetPath, sampleStart)
+		myRun = tenXIndexCheck(sampleSheetArray, sampleSheetPath, sampleStart, myRun)
 	except Exception as e:
 		print(e)
 	
@@ -232,33 +259,43 @@ def takeMeToBigBirdLogger( num2, massagers, num1 ):
 	
 	return
 
-def tenXIndexCheck (sampleSheetArray, sampleSheetPath, sampleStart):
+def tenXIndexCheck (sampleSheetArray, sampleSheetPath, sampleStart, myRun):
 
-	with open('10x_indices.json', 'r', encoding='utf-8') as f:
+	#tenx_path
+	jsonFilePath = os.path.join(autoPath, "bcl2fastqRunner", "10x_indices.json")
+
+	with open(jsonFilePath, 'r', encoding='utf-8') as f:
     		dict_of_indices = json.load(f)
-
+	
+	#print(sampleSheetArray)
 	I7_Index_ID = sampleSheetArray[sampleStart].index('I7_Index_ID')
 	I5_Index_ID = sampleSheetArray[sampleStart].index('I5_Index_ID')
 	index2 = sampleSheetArray[sampleStart].index('index2')
+	index1 = sampleSheetArray[sampleStart].index('index')
 	
 
 	#print(sampleSheetArray)
 
-	with open('10x_indices.json', 'r', encoding='utf-8') as f:
-    		dict_of_indices = json.load(f)
+#	with open('10x_indices.json', 'r', encoding='utf-8') as f:
+#   		dict_of_indices = json.load(f)
 
 	tenx_test = sampleSheetArray[sampleStart + 1]
+	#print(tenx_test)
+	#print("THIS: ", dict_of_indices[tenx_test[index1]])
 	
-	if dict_of_indices[tenx_test[I7_Index_ID]]:
+	if dict_of_indices[tenx_test[index1]]:
 		takeMeToBigBirdLogger(0, 'I think this maybe a 10x run. Generating workflow_b indices for sample sheet.', 1)
+		myRun["libraryType"] = "10x"
+		
+	
 
 	for ooh in range(sampleStart + 1, len(sampleSheetArray)):
 		gash = sampleSheetArray[ooh]
 	
 
-		if dict_of_indices[gash[I7_Index_ID]]:
-			sampleSheetArray[ooh][I5_Index_ID] = dict_of_indices[gash[I7_Index_ID]]
-			sampleSheetArray[ooh][index2] = dict_of_indices[gash[I7_Index_ID]]
+		if dict_of_indices[gash[index1]]:
+			sampleSheetArray[ooh][I5_Index_ID] = dict_of_indices[gash[index1]]
+			sampleSheetArray[ooh][index2] = dict_of_indices[gash[index1]]
 
 
 	#print(sampleSheetArray)
@@ -270,6 +307,9 @@ def tenXIndexCheck (sampleSheetArray, sampleSheetPath, sampleStart):
 	
 		for row in sampleSheetArray:
 			spamwriter.writerow(row)
+	
+	
+	return myRun
 
 
 def textCheckGenerator ( myRun ):
@@ -284,16 +324,20 @@ def textCheckGenerator ( myRun ):
 	
 	weirdID = myRun["folderName"]
 	
+	nowTime = datetime.now()
+	date_time = nowTime.strftime("%m/%d/%Y, %H:%M:%S > ")
+	
 	with open(textName, "a+") as textFile:
-		textFile.write(weirdID + "\n")
+		textFile.write(date_time + weirdID + "\n")
 		
 	return myRun
 
 def main() :
 	
-	subjectRun = {"Path": "/mnt/heisenberg/210721_NB501662_0305_AHGN3HBGXJ", "folderName":"210721_NB501662_0305_AHGN3HBGXJ", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[]}
+	#subjectRun = {"Path": "/mnt/heisenberg/210811_A01113_0032_AHFHC3DRXY", "folderName":"210811_A01113_0032_AHFHC3DRXY", "runName": "GG54", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[]}
 
-	runCheck = sampleSheetReader(subjectRun)
+	#runCheck = sampleSheetReader(subjectRun)
+	
 	'''
 	print(runCheck)
 	

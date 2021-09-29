@@ -78,7 +78,7 @@ def basePercent( inputString ):
 	plt.xlabel("Cycle", fontsize=20)
 	plt.title("Data by Cycle: %Base", fontsize=25)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "4_percent_base_by_cycle.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
+	plt.savefig(os.path.join(inputString, "InterOp", "Interop_Images", "4_percent_base_by_cycle.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25)
 	plt.clf()
 	
 	return
@@ -133,7 +133,7 @@ def densityPerLane( inputString ):
 	plt.xlabel("Lane", fontsize=20)
 	plt.title("Data by Lane: Cluster Density", fontsize=25)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "2_density_per_lane.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
+	plt.savefig(os.path.join(inputString, "InterOp", "Interop_Images", "2_density_per_lane.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	
 	plt.clf()
 	
@@ -174,7 +174,7 @@ def errorExtraction( inputString ):
 	plt.xlabel("Cycle", fontsize=20)
 	plt.title("Data by Cycle: Error Rate", fontsize=25)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "5_error_rate.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
+	plt.savefig(os.path.join(inputString, "InterOp", "Interop_Images", "5_error_rate.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	
 	plt.clf()
 	
@@ -213,7 +213,7 @@ def indexPercentRead( inputString ):
 	ax = axFormatter(ax)
 	fig = figFormatter(fig)
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "6_index_percent_read.jpg"), dpi = 200, bbox_inches = 'tight', edgecolor='black')
+	plt.savefig(os.path.join(inputString, "InterOp", "Interop_Images", "6_index_percent_read.jpg"), dpi = 200, bbox_inches = 'tight', edgecolor='black')
 	plt.clf()
 	
 	return
@@ -332,7 +332,7 @@ def qscoreHistogram( inputString ):
 	plt.xlim([bar_data.xyaxes().x().min(), bar_data.xyaxes().x().max()])
 	
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "1_qscore_histogram.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
+	plt.savefig(os.path.join(inputString, "InterOp", "Interop_Images", "1_qscore_histogram.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	
 	plt.clf()
 	
@@ -415,7 +415,7 @@ def qscoreHeatmap( inputString ):
 	plt.xticks(rotation=45)
 	plt.text(-4, 317.5, "40.0", color='black')
 	
-	plt.savefig(os.path.join(inputString, "Interop_Images", "3_qscore_heatmap.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
+	plt.savefig(os.path.join(inputString, "InterOp", "Interop_Images", "3_qscore_heatmap.jpg"), dpi = 200, bbox_inches = 'tight', pad_inches=0.25, edgecolor='black')
 	plt.clf()
 	
 	return
@@ -446,11 +446,11 @@ def readSummary( inputString ):
 	#print(html)
 	
 	try:
-		os.mkdir(os.path.join(inputString, "Interop_Images", "Summaries"))
+		os.mkdir(os.path.join(inputString, "InterOp", "Interop_Images", "Summaries"))
 	except:
 		pass
 	
-	with open(os.path.join(inputString, "Interop_Images", "Summaries", "read_summary.html"), 'w') as outfile:
+	with open(os.path.join(inputString, "InterOp", "Interop_Images", "Summaries", "read_summary.html"), 'w') as outfile:
 		outfile.write(html_read)
 	
 	df_lane = pd.DataFrame(run_lane)
@@ -470,7 +470,7 @@ def interopGenerator(myRun):
 	run_folder = myRun["Path"]
 	
 	try:
-		os.mkdir(os.path.join(run_folder, "Interop_Images"))
+		os.mkdir(os.path.join(run_folder, "InterOp", "Interop_Images"))
 	except:
 		pass
 	
@@ -492,10 +492,11 @@ def interopGenerator(myRun):
 		pass
 		#print("base fail")
 	
-	#try:
-	densityPerLane(run_folder)
-	#except:
+	try:
+		densityPerLane(run_folder)
+	except:
 	#	print("density fail")
+		pass
 	
 	try:
 		qscoreHistogramActual = qscoreHistogram(run_folder)
@@ -526,10 +527,10 @@ def interopGenerator(myRun):
 	return imageFolderLocation
 
 def main():
-	
+	'''
 	subjectRunTest = {"Path": "/run/user/1000/gvfs/smb-share:server=bigbird.ibb.gatech.edu,share=ngs/NextSeq/MW59/210617_NB501662_0302_AHGTMNBGXJ/", "runName": "MW59", "runInstrument":"NextSeq", "FlowcellID":"AHGTMNBGXJ", "outputFolderLocation":""}
 	interopGenerator(subjectRunTest)
-	
+	'''
 	return
 
 main()
