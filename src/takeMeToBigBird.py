@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import csv
 import shutil
@@ -16,7 +17,53 @@ keepPath = "/mnt/heisenberg/"
 archivePath = "/mnt/heisenberg/ARCHIVE/"
 bigBirdPath = "/mnt/bigbird/"
 
+def bcl2fastqWrapper( subjectRun ):
+	
+	successOrNot = BR.bcl2fastqRun(subjectRun)
+					
+	if successOrNot == 0:
+		takeMeToBigBirdLogger(0, "THE RUN FINISHED SUCCESSFULLY", 1)
+		
+		try:
+			BR.fastQCRunner( subjectRun )
+		except Exception as e:
+			takeMeToBigBirdLogger(0, "fastQCRunner failed: %s" % str(e), 2)
+			EM.errorSender("fastQCRunner failed: %s" % str(e), subjectRun)
+							
+		try:
+			takeMeToBigBirdLogger(0, "Generating Interop images...", 1)
+			IG.interopGenerator(subjectRun)
+		except Exception as e:
+			takeMeToBigBirdLogger(0, "interopGenerator failed: %s" % str(e), 2)
+			EM.errorSender("interopGenerator failed: %s" % str(e), subjectRun)
+		else:
+			takeMeToBigBirdLogger(0, "interopGenerator succeeded", 2)
+							
+		try:
+			BR.archiveMover(subjectRun)
+		except Exception as e:
+			takeMeToBigBirdLogger(0, "Moving to archive failed: %s" % str(e), 2)
+			EM.errorSender("archiveMover failed: %s" % str(e), subjectRun)
+				
+		try:
+			takeMeToBigBirdLogger(0, "Drafting email...", 1)
+			EM.emailSendingWrapper(subjectRun)
+		except Exception as e:
+			takeMeToBigBirdLogger(0, "emailSender failed: %s" % str(e), 2)
+			EM.errorSender("Could not send email: %s" % str(e), subjectRun)
+		else:
+			takeMeToBigBirdLogger(0, "emailSender succeeded", 2)
+							
+		try:
+			BR.bigBirdMover(subjectRun)
+		except Exception as e:
+			takeMeToBigBirdLogger(0, "directoryMover failed: %s" % str(e), 2)
+			EM.errorSender("directoryMover failed: %s" % str(e), subjectRun)			
+	else:
+		takeMeToBigBirdLogger(0, "THE RUN FAILED!", 2)
 
+	return successOrNot
+			
 def directoryCheck ( myRun ):
 	pth = myRun["Path"]
 
@@ -36,7 +83,7 @@ def directoryCheck ( myRun ):
 		nowTime = datetime.now()
 		timeDiff = nowTime - lastModified
 		
-		if timeDiff.total_seconds()/60.0 < 30:
+		if timeDiff.total_seconds()/60.0 < 45.0:
 			directoryBool = False
 			directoryTimeBool = False
 	
@@ -105,82 +152,57 @@ def takeMeToBigBirdLogger( num2, massagers, num1 ):
 
 def main():
 	
-	#print("ok running")
-	takeMeToBigBirdLogger(1, "I will take you to Big Bird!", 2)
-	waitTime = 900
-	n = 0
 	
-	while True:
+	if len(sys.argv) == 3 and sys.argv[1] == 'force':
 		
-		n+=1
+		dirName = os.path.join(keepPath, sys.argv[2])
 		
-		ngsRawFolders = [ f.path for f in os.scandir(keepPath) if f.is_dir() ]
-		takeMeToBigBirdLogger(1, "I'm beginning to scan for new folders. Number of times I've checked this directory: %i" % n, 1)	
+		subjectRun = {"Path": dirName, "folderName": sys.argv[2], "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[], "libraryType":"UNKNOWN"}
 		
-		for dirName in ngsRawFolders:
+		takeMeToBigBirdLogger(2, "Running folder %s by force." % sys.argv[2], 1)
+		
+		try:
+			bcl2fastqWrapper(subjectRun)
+		except Exception as e:
+			takeMeToBigBirdLogger(1, "Failed to run folder %s: %s" % (sys.argv[2], e), 1)
+		
+		return
+		
+	elif len(sys.argv) == 1:
+		#print("ok running")
+		takeMeToBigBirdLogger(1, "I will take you to Big Bird!", 2)
+		waitTime = 900
+		n = 0
+		
+		while True:
 			
-			subjectRun = {"Path": dirName, "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[], "libraryType":"UNKNOWN"}
-			slashIndex = [i for i, char in enumerate(dirName) if char == "/"]
-			subjectRun["folderName"] = dirName[slashIndex[-1]+1:]
+			n+=1
 			
-			if dirName == os.path.join(keepPath, "ARCHIVE"):
-				continue
-			elif dirName == os.path.join(keepPath, "COVID"):
-				continue
-			elif dirName == os.path.join(keepPath, "MyRun"):
-				shutil.rmtree(dirName)
-				continue
-			elif directoryCheck(subjectRun):
+			ngsRawFolders = [ f.path for f in os.scandir(keepPath) if f.is_dir() ]
+			takeMeToBigBirdLogger(1, "I'm beginning to scan for new folders. Number of times I've checked this directory: %i" % n, 1)	
 			
-				successOrNot = BR.bcl2fastqRun(subjectRun)
+			for dirName in ngsRawFolders:
 				
-				if successOrNot == 0:
-					takeMeToBigBirdLogger(0, "THE RUN FINISHED SUCCESSFULLY", 1)
-		
-					try:
-						BR.fastQCRunner( subjectRun )
-					except Exception as e:
-						takeMeToBigBirdLogger(0, "fastQCRunner failed: %s" % str(e), 2)
-						EM.errorSender("fastQCRunner failed: %s" % str(e), subjectRun)
+				subjectRun = {"Path": dirName, "folderName": "", "runName": "", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[], "libraryType":"UNKNOWN"}
+				slashIndex = [i for i, char in enumerate(dirName) if char == "/"]
+				subjectRun["folderName"] = dirName[slashIndex[-1]+1:]
+				
+				if dirName == os.path.join(keepPath, "ARCHIVE"):
+					continue
+				elif dirName == os.path.join(keepPath, "COVID"):
+					continue
+				elif dirName == os.path.join(keepPath, "MyRun"):
+					shutil.rmtree(dirName)
+					continue
+				elif directoryCheck(subjectRun):
 					
-					try:
-						takeMeToBigBirdLogger(0, "Generating Interop images...", 1)
-						IG.interopGenerator(subjectRun)
-					except Exception as e:
-						takeMeToBigBirdLogger(0, "interopGenerator failed: %s" % str(e), 2)
-						EM.errorSender("interopGenerator failed: %s" % str(e), subjectRun)
-					else:
-						takeMeToBigBirdLogger(0, "interopGenerator succeeded", 2)
-					
-					try:
-						BR.archiveMover(subjectRun)
-					except Exception as e:
-						takeMeToBigBirdLogger(0, "Moving to archive failed: %s" % str(e), 2)
-						EM.errorSender("archiveMover failed: %s" % str(e), subjectRun)
-					
-					try:
-						takeMeToBigBirdLogger(0, "Drafting email...", 1)
-						EM.emailSendingWrapper(subjectRun)
-					except Exception as e:
-						takeMeToBigBirdLogger(0, "emailSender failed: %s" % str(e), 2)
-						EM.errorSender("Could not send email: %s" % str(e), subjectRun)
-					else:
-						takeMeToBigBirdLogger(0, "emailSender succeeded", 2)
-					
-					try:
-						BR.bigBirdMover(subjectRun)
-					except Exception as e:
-						takeMeToBigBirdLogger(0, "directoryMover failed: %s" % str(e), 2)
-						EM.errorSender("directoryMover failed: %s" % str(e), subjectRun)
-					
-				else:
-					takeMeToBigBirdLogger(0, "THE RUN FAILED!", 2)
-		
-		noTime = datetime.now()
-		nextTime = noTime + timedelta(seconds = waitTime)
-		sleepMessage = "I'm going to take a nap now...\n                       I will begin scanning again at %s" % nextTime.strftime("%m/%d/%Y, %H:%M:%S")
-		takeMeToBigBirdLogger(0, sleepMessage, 2)
-		time.sleep(waitTime)
+					bcl2fastqWrapper(subjectRun)
+			
+			noTime = datetime.now()
+			nextTime = noTime + timedelta(seconds = waitTime)
+			sleepMessage = "I'm going to take a nap now...\n                       I will begin scanning again at %s" % nextTime.strftime("%m/%d/%Y, %H:%M:%S")
+			takeMeToBigBirdLogger(0, sleepMessage, 2)
+			time.sleep(waitTime)
 	
 	return
 	

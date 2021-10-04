@@ -199,8 +199,8 @@ def emailSender(onePath, myRun, imageLocation):
 		msg.attach(multiQCReport)
 	except:
 		pass
-	
-	recipientEmails = ["naima.djeddar@ibb.gatech.edu", "fangshi@gatech.edu"]
+	#"naima.djeddar@ibb.gatech.edu"
+	recipientEmails = ["fangshi@gatech.edu", "naima.djeddar@ibb.gatech.edu"]
 	ccEmails = ["fangshi90@gmail.com"]
 	msg["Subject"] = 'Sequencing Results Available: ' + myRun["runName"]
 	msg["From"] = "molecular.evolution@outlook.com"

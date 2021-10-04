@@ -456,7 +456,7 @@ def readSummary( inputString ):
 	df_lane = pd.DataFrame(run_lane)
 	html_lane = df_lane.to_html()
 	
-	with open('/home/mecore/Desktop/timp/testing_ground/lane_summary.html', 'w') as outfile:
+	with open(os.path.join(inputString, "InterOp", "Interop_Images", "Summaries", "lane_summary.html"), 'w') as outfile:
 		outfile.write(html_lane)
 		
 	

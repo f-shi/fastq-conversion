@@ -15,6 +15,32 @@ keepPath = "/mnt/heisenberg/"
 archivePath = "/mnt/heisenberg/ARCHIVE/"
 bigBirdPath = "/mnt/bigbird/"
 
+def archiveMover (myRun) :
+	
+	takeMeToBigBirdLogger(0, "The FASTQ files are being added to the ARCHIVE on Heisenberg", 1)
+	
+	#p1 is run folder path
+	#p2 is run name
+	p1 = myRun["Path"]
+	p3 = myRun["outputFolderLocation"]
+
+	#if not os.path.isdir(p2):
+	#	os.mkdir(p2)
+	
+	#print(p2)
+	
+	
+	try:
+		archiveMovePath = os.path.join(archivePath, myRun["runInstrument"], myRun["runName"], "")
+		moveCheck3 = subprocess.run(["scp", "-r", myRun["outputFolderLocation"], archiveMovePath])
+		moveCheck4 = subprocess.run(["scp", "-r", os.path.join(myRun["Path"], "Interop"), archiveMovePath])
+		os.rename(os.path.join(archiveMovePath, "Interop", ""), os.path.join(archiveMovePath, "Interop_" + myRun["runName"], ""))
+		takeMeToBigBirdLogger(0, 'FASTQ Files are in ARCHIVE', 2)
+	except Exception as e:
+		takeMeToBigBirdLogger(0, 'There was an issue moving the FASTQ files to the ARCHIVE on Heisenberg: %s' % e, 2)
+
+	return myRun
+
 def bcl2fastqRun ( myRun ):
 	
 	myRun = textCheckGenerator(myRun)
@@ -45,22 +71,49 @@ def bcl2fastqRun ( myRun ):
         		raise
     		pass
 	
-	bcl2fastqCheck = open(os.path.join(myRun["Path"], "bcl2fastqCheck.txt"), 'a+')
-	takeMeToBigBirdLogger(1, "STARTING BCL2FASTQ RUN on %s" % myRun["Path"], 1)
-	
 	if myRun["libraryType"] == "10x":
+		'''
 		successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "8", "--minimum-trimmed-read-length", "8", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+		'''
+		successOrNot = bcl2fastqHelper(myRun, readLength = "8")
 	else:
+		successOrNot = bcl2fastqHelper(myRun)
+		'''
 		successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+		'''
 	
 	if successOrNot.returncode != 0:
+		successOrNot = bcl2fastqHelper(myRun, barcodeMismatches = "0", loggerMessage =  "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES")
+		'''
 		takeMeToBigBirdLogger(1, "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES", 1)
 		successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"],  "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "--barcode-mismatches", "0", "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
+		'''
+	successOrNot = postRunIndexChecker(myRun, successOrNot)
+	
+	
+	return successOrNot.returncode
+
+def bcl2fastqHelper(myRun, readLength = "35", barcodeMismatches = "1", sampleSheetName = 'SampleSheet.csv', loggerMessage = "STARTING BCL2FASTQ RUN on %s"):
+	
+	try:
+		loggerMessage = loggerMessage % myRun["Path"]
+	except:
+		pass
+	
+	takeMeToBigBirdLogger(1, loggerMessage, 1)
+
+	if not isinstance(readLength, str):
+		readLength = str(readLength)
+		
+	
+	bcl2fastqCheck = open(os.path.join(myRun["Path"], "bcl2fastqCheck.txt"), 'a+')
+	
+	successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"],  "--sample-sheet", os.path.join(myRun["Path"], sampleSheetName), "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", readLength, "--minimum-trimmed-read-length", readLength, "--barcode-mismatches", barcodeMismatches, "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
 	
 	bcl2fastqCheck.close()
 	
-	return successOrNot.returncode
-	
+	return successOrNot
+
 def bigBirdMover ( myRun ):
 	
 	takeMeToBigBirdLogger(1, "The directory is being taken to Big Bird", 1)
@@ -78,8 +131,13 @@ def bigBirdMover ( myRun ):
 	#print(p2)
 	
 	try:
-		moveCheck1 = subprocess.run(["scp", "-r","-v", myRun["Path"], p2])
 		moveCheck2 = subprocess.run(["scp", "-r", myRun["outputFolderLocation"], p2])
+		if moveCheck2.returncode == 0:
+			try:
+				shutil.rmtree(p3)
+			except:
+				pass
+		moveCheck1 = subprocess.run(["scp", "-r","-v", myRun["Path"], p2])
 		moveCheck3 = subprocess.run(["scp", "-r", os.path.join(archiveMovePath, "Interop_"+myRun["runName"], ""), p2])
 	except:
 		pass
@@ -110,31 +168,81 @@ def bigBirdMover ( myRun ):
 	
 	return myRun
 
-def archiveMover (myRun) :
-	
-	takeMeToBigBirdLogger(0, "The FASTQ files are being added to the ARCHIVE on Heisenberg", 1)
-	
-	#p1 is run folder path
-	#p2 is run name
-	p1 = myRun["Path"]
-	p3 = myRun["outputFolderLocation"]
+def complementMaker(seqString):
 
-	#if not os.path.isdir(p2):
-	#	os.mkdir(p2)
+	complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+	reverse_complement = "".join(complement.get(base, base) for base in reversed(seqString))
 	
-	#print(p2)
+	return reverse_complement
 	
-	
-	try:
-		archiveMovePath = os.path.join(archivePath, myRun["runInstrument"], myRun["runName"], "")
-		moveCheck3 = subprocess.run(["scp", "-r", myRun["outputFolderLocation"], archiveMovePath])
-		moveCheck4 = subprocess.run(["scp", "-r", os.path.join(myRun["Path"], "Interop"), archiveMovePath])
-		os.rename(os.path.join(archiveMovePath, "Interop", ""), os.path.join(archiveMovePath, "Interop_" + myRun["runName"], ""))
-		takeMeToBigBirdLogger(0, 'FASTQ Files are in ARCHIVE', 2)
-	except:
-		takeMeToBigBirdLogger(0, 'There was an issue moving the FASTQ files to the ARCHIVE on Heisenberg', 1)
+def csvIndexRipper(myRun, listOfUnknowns):
 
-	return myRun
+	#listOfUnknowns = list(set(listOfUnknowns))
+
+	with open(os.path.join(myRun["Path"], "SampleSheet.csv"), 'r') as csvOpened:
+		csvReads = csv.reader(csvOpened,delimiter=',', quotechar='|')
+		sampleSheet = []
+		index_1 = 0
+		index_2 = 0
+		indexFails = 0
+		totalIndices = 0
+
+
+		marker = False
+		dualIndex = False
+		indexFailed = False
+
+		for row in enumerate(csvReads):
+
+			if marker and not dualIndex:
+				break
+			elif marker:
+				
+				totalIndices += 1
+				
+				sheet_i7 = row[1][index_1]
+				sheet_i5 = row[1][index_2]
+				'''
+				for unknownIndex in listOfUnknowns:
+					print(unknownIndex)
+					if sheet_i7 == unknownIndex[0] and sheet_i5 == complementMaker(unknownIndex[1]):
+						indexFailed += 1
+						print("YES: ", unknownIndex, complementMaker(row[1][index_2]))
+						row[1][index_2] = complementMaker(row[1][index_2])
+						continue
+				'''
+				
+				if [sheet_i7, complementMaker(sheet_i5)] in listOfUnknowns:
+					indexFailed = True
+					print("Yes: ", sheet_i7, sheet_i5)
+					row[1][index_2] = complementMaker(row[1][index_2])
+
+			if row[1] and row[1][0] == "Sample_ID":
+
+					for index, value in enumerate(row[1]):
+						
+						if value == 'index':
+							index_1 = index 
+						elif value == 'index2':
+							dualIndex = True
+							index_2 = index
+
+					marker = True
+
+			#print(row[1])
+			sampleSheet.append(row[1])
+
+	if indexFailed:
+		print("CorrectedSampleSheet.csv")
+		newName = "CorrectedSampleSheet.csv"
+
+		with open(os.path.join(myRun["Path"], newName), 'w', newline='', encoding='utf-8') as csvfile:
+			spamwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+			
+			for row in sampleSheet:
+				spamwriter.writerow(row)
+
+	return(indexFailed)
 
 def fastQCRunner ( myRun ):
 
@@ -202,6 +310,8 @@ def runInfoReader ( myRun ):
 		myRun["runInstrument"] = "NovaSeq"
 	elif instrumentIdent == "M01562":
 		myRun["runInstrument"] = "MiSeq"
+	elif instrumentIdent == "FS10000715":
+		myRun["runInstrument"] = "iSeq"
 	else:
 		myRun["runInstrument"] = "UNKNOWN"
 
@@ -209,6 +319,22 @@ def runInfoReader ( myRun ):
 
 	#print ("This is run on %s" % runInstrument);
 	return myRun
+
+def postRunIndexChecker(myRun, successOrNot):
+	listOfUnknowns = unknownBarcodesRipper(myRun)
+	indexComplementFail = csvIndexRipper(myRun, listOfUnknowns)
+
+	if indexComplementFail:
+
+		if myRun["libraryType"] == "10x":
+			readLength = "8"
+		else:
+			readLength = "35"
+
+		#successOrNot = bcl2fastqHelper(myRun, readLength, sampleSheetName = "CorrectedSampleSheet.csv", loggerMessage = "Rerunning bcl2fastq on %s because of index complement issue.")
+
+
+	return successOrNot
 
 def sampleSheetReader ( myRun ):
 
@@ -227,10 +353,10 @@ def sampleSheetReader ( myRun ):
 		
 			sampleSheetArray.append(row)
 	
-	try:
-		myRun = tenXIndexCheck(sampleSheetArray, sampleSheetPath, sampleStart, myRun)
-	except Exception as e:
-		print(e)
+	
+	myRun = tenXIndexCheck(sampleSheetArray, sampleSheetPath, sampleStart, myRun)
+
+		
 	
 	
 	secondRow = sampleSheetArray[2]
@@ -273,40 +399,28 @@ def tenXIndexCheck (sampleSheetArray, sampleSheetPath, sampleStart, myRun):
 	index2 = sampleSheetArray[sampleStart].index('index2')
 	index1 = sampleSheetArray[sampleStart].index('index')
 	
-
-	#print(sampleSheetArray)
-
-#	with open('10x_indices.json', 'r', encoding='utf-8') as f:
-#   		dict_of_indices = json.load(f)
-
 	tenx_test = sampleSheetArray[sampleStart + 1]
-	#print(tenx_test)
-	#print("THIS: ", dict_of_indices[tenx_test[index1]])
 	
 	if dict_of_indices[tenx_test[index1]]:
 		takeMeToBigBirdLogger(0, 'I think this maybe a 10x run. Generating workflow_b indices for sample sheet.', 1)
 		myRun["libraryType"] = "10x"
 		
-	
-
-	for ooh in range(sampleStart + 1, len(sampleSheetArray)):
-		gash = sampleSheetArray[ooh]
-	
-
-		if dict_of_indices[gash[index1]]:
-			sampleSheetArray[ooh][I5_Index_ID] = dict_of_indices[gash[index1]]
-			sampleSheetArray[ooh][index2] = dict_of_indices[gash[index1]]
+		for ooh in range(sampleStart + 1, len(sampleSheetArray)):
+			gash = sampleSheetArray[ooh]
+			
+			if gash[index1] in dict_of_indices:
+				sampleSheetArray[ooh][I5_Index_ID] = dict_of_indices[gash[index1]]
+				sampleSheetArray[ooh][index2] = dict_of_indices[gash[index1]]
 
 
-	#print(sampleSheetArray)
+		#print(sampleSheetArray)
 
-	newName = 'SampleSheet.csv'
-
-	with open(sampleSheetPath, 'w', newline='', encoding='utf-8') as csvfile:
-		spamwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-	
-		for row in sampleSheetArray:
-			spamwriter.writerow(row)
+		with open(sampleSheetPath, 'w', newline='', encoding='utf-8') as csvfile:
+			spamwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+		
+			for row in sampleSheetArray:
+				print(sampleSheetPath, row)
+				spamwriter.writerow(row)
 	
 	
 	return myRun
@@ -332,12 +446,26 @@ def textCheckGenerator ( myRun ):
 		
 	return myRun
 
-def main() :
-	
-	#subjectRun = {"Path": "/mnt/heisenberg/210811_A01113_0032_AHFHC3DRXY", "folderName":"210811_A01113_0032_AHFHC3DRXY", "runName": "GG54", "runInstrument":"", "FlowcellID":"", "outputFolderLocation":"", "outputErrors":[]}
+def unknownBarcodesRipper(myRun):
+	with open(os.path.join(myRun["outputFolderLocation"], "Stats", "Stats.json"), 'r') as openJson:
+		demuxStats = json.load(openJson)
 
-	#runCheck = sampleSheetReader(subjectRun)
-	
+	listOfUnknowns = []
+
+	for listHold in demuxStats["UnknownBarcodes"]:
+		if listHold["Barcodes"]:
+			listOfUnknowns.extend(list(listHold['Barcodes'])[0:10])
+
+	listOfUnknowns = [n.split("+") for n in listOfUnknowns]
+
+	return listOfUnknowns
+
+def main() :
+	'''
+	subjectRun = {"Path": "/mnt/bigbird/NovaSeq/BX02/210930_A01113_0043_AHLJFNDRXY", "folderName":"210930_A01113_0043_AHLJFNDRXY", "runName": "BX02", "runInstrument":"NovaSeq", "FlowcellID":"", "outputFolderLocation":"/mnt/bigbird/NovaSeq/BX02/FASTQ_Files_BX02", "libraryType":"10x", "outputErrors":[]}
+
+	runCheck = postRunIndexChecker(subjectRun, True)
+	'''
 	'''
 	print(runCheck)
 	
