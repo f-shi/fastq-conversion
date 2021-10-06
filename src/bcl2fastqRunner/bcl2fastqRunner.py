@@ -401,27 +401,29 @@ def tenXIndexCheck (sampleSheetArray, sampleSheetPath, sampleStart, myRun):
 	
 	tenx_test = sampleSheetArray[sampleStart + 1]
 	
-	if dict_of_indices[tenx_test[index1]]:
-		takeMeToBigBirdLogger(0, 'I think this maybe a 10x run. Generating workflow_b indices for sample sheet.', 1)
-		myRun["libraryType"] = "10x"
-		
-		for ooh in range(sampleStart + 1, len(sampleSheetArray)):
-			gash = sampleSheetArray[ooh]
+	try:
+		if dict_of_indices[tenx_test[index1]]:
+			takeMeToBigBirdLogger(0, 'I think this maybe a 10x run. Generating workflow_b indices for sample sheet.', 1)
+			myRun["libraryType"] = "10x"
 			
-			if gash[index1] in dict_of_indices:
-				sampleSheetArray[ooh][I5_Index_ID] = dict_of_indices[gash[index1]]
-				sampleSheetArray[ooh][index2] = dict_of_indices[gash[index1]]
+			for ooh in range(sampleStart + 1, len(sampleSheetArray)):
+				gash = sampleSheetArray[ooh]
+				
+				if gash[index1] in dict_of_indices:
+					sampleSheetArray[ooh][I5_Index_ID] = dict_of_indices[gash[index1]]
+					sampleSheetArray[ooh][index2] = dict_of_indices[gash[index1]]
 
 
-		#print(sampleSheetArray)
+			#print(sampleSheetArray)
 
-		with open(sampleSheetPath, 'w', newline='', encoding='utf-8') as csvfile:
-			spamwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-		
-			for row in sampleSheetArray:
-				print(sampleSheetPath, row)
-				spamwriter.writerow(row)
-	
+			with open(sampleSheetPath, 'w', newline='', encoding='utf-8') as csvfile:
+				spamwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+			
+				for row in sampleSheetArray:
+					print(sampleSheetPath, row)
+					spamwriter.writerow(row)
+	except:
+		pass
 	
 	return myRun
 

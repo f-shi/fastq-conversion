@@ -221,8 +221,6 @@ def emailSender(onePath, myRun, imageLocation):
 	
 def errorSender(errorMessage, myRun):
 	
-	print(errorMessage)
-	
 	msg = EmailMessage()
 	msg.set_content(errorMessage)
 	

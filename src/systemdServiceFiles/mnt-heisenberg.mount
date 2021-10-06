@@ -9,5 +9,6 @@ Where=/mnt/heisenberg
 Options=uid=mecore,credentials=/home/mecore/Desktop/timp/fastq-automation/src/systemdServiceFiles/.cred,uid=mecore,gid=mecore,dir_mode=0755,file_mode=0755
 Type=cifs
 
+
 [Install]
 WantedBy=multi-user.target
