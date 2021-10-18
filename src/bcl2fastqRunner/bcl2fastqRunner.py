@@ -8,6 +8,7 @@ import errno
 import json
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, date
+from bs4 import BeautifulSoup
 
 
 autoPath = "/home/mecore/Desktop/timp/fastq-automation/src/"
@@ -17,7 +18,7 @@ bigBirdPath = "/mnt/bigbird/"
 
 def archiveMover (myRun) :
 	
-	takeMeToBigBirdLogger(0, "The FASTQ files are being added to the ARCHIVE on Heisenberg", 1)
+	takeMeToBigBirdLogger(0, "The FASTQ files of %s are being added to the ARCHIVE on Heisenberg" % myRun["runName"], 1)
 	
 	#p1 is run folder path
 	#p2 is run name
@@ -60,7 +61,8 @@ def bcl2fastqRun ( myRun ):
 	#takeMeToBigBirdLogger(0, "Making a copy of %s" % myRun["Path"], 1)
 	
 	#shutil.copytree(myRun["Path"], os.path.join(keepPath, "ARCHIVE", myRun["runInstrument"], myRun[""""))
-	subprocess.run(["cp", "-r","-v", myRun["Path"], archiveFolderPath])
+	dashboardUpdater('currently_running', 'Backing up run folder to ARCHIVE...', myRun)
+	subprocess.run(["scp", "-r", "-v", myRun["Path"], archiveFolderPath])
 
 	myRun["outputFolderLocation"] = os.path.join(myRun["Path"],"FASTQ_Files_" + myRun["runName"], "")
 	
@@ -71,23 +73,17 @@ def bcl2fastqRun ( myRun ):
         		raise
     		pass
 	
+	dashboardUpdater('currently_running', 'Running bcl2fastq...', myRun)
 	if myRun["libraryType"] == "10x":
-		'''
-		successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "8", "--minimum-trimmed-read-length", "8", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
-		'''
+
 		successOrNot = bcl2fastqHelper(myRun, readLength = "8")
 	else:
 		successOrNot = bcl2fastqHelper(myRun)
-		'''
-		successOrNot = subprocess.run(["bcl2fastq", "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "-R", myRun["Path"], "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
-		'''
+
 	
 	if successOrNot.returncode != 0:
 		successOrNot = bcl2fastqHelper(myRun, barcodeMismatches = "0", loggerMessage =  "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES")
-		'''
-		takeMeToBigBirdLogger(1, "RUN FAILED, RUNNING AGAIN WITH FEWER ALLOWED MISMATCHES", 1)
-		successOrNot = subprocess.run(["bcl2fastq", "-R", myRun["Path"],  "--ignore-missing-bcls", "--ignore-missing-filter", "--ignore-missing-positions", "--ignore-missing-controls", "--find-adapters-with-sliding-window", "--adapter-stringency", "0.9", "--mask-short-adapter-reads", "35", "--minimum-trimmed-read-length", "35", "--barcode-mismatches", "0", "-o", myRun["outputFolderLocation"]], stdout=bcl2fastqCheck, stderr=subprocess.STDOUT)
-		'''
+
 	successOrNot = postRunIndexChecker(myRun, successOrNot)
 	
 	
@@ -244,6 +240,66 @@ def csvIndexRipper(myRun, listOfUnknowns):
 
 	return(indexFailed)
 
+def dashboardUpdater ( str1, str2, myRun ):
+	
+	dashboard_path_list = ["/mnt/heisenberg/dashboard.html", "/mnt/bigbird/fangtest/dashboard.html"]
+
+	for dashboard_path in dashboard_path_list:
+
+		with open(dashboard_path, 'r') as f:
+
+			contents = f.read()
+
+			soup = BeautifulSoup(contents, 'lxml')
+
+			if str1 == 'currently_running':
+				current_task = soup.find('span', {'id' : 'current_task'})
+				current_task.string = str2
+				
+				run_or_time = soup.find('span', {'id' : 'run_or_time'})
+				run_or_time.string = 'CURRENT RUN: '
+				
+				current_run = soup.find('span', {'id' : 'current_run_or_time'})
+				current_run.string = myRun["runName"]
+				
+			elif str1 == "currently_waiting":
+			
+				current_task = soup.find('span', {'id' : 'current_task'})
+				current_task.string.replace_with(str2)
+				
+				run_or_time = soup.find('span', {'id' : 'run_or_time'})
+				run_or_time.string = 'NEXT CHECK TIME: '
+				
+				current_run = soup.find('span', {'id' : 'current_run_or_time'})
+				current_run.string = myRun["runName"]
+			
+			elif str1 == 'run_checks':
+				runblock2 = soup.find(id='runblock')
+				#print(type(runblock2))
+				run_list = runblock2.find('span', {'class' : 'runfolder'})
+				#print("run_list: ", run_list)
+
+				new_tag = soup.new_tag('span', **{'class':'runfolder'}, id=myRun["folderName"])
+				new_tag.string= myRun["folderName"] + ": " + str2
+				new_tag.append(soup.new_tag('br'))
+
+				runblock2.insert(4, new_tag)
+				
+				current_run = soup.find('span', {'id' : 'current_run_or_time'})
+				current_run.string = myRun["folderName"]
+
+			elif str1 == 'run_clear':
+				elements = soup.find_all("span", **{'class':'runfolder'})
+
+				for element in elements:
+					element.decompose()
+
+
+		with open(dashboard_path, 'w') as f:
+			f.write(str(soup))
+	
+	return
+
 def fastQCRunner ( myRun ):
 
 	bcl2fastqCheck = open(os.path.join(myRun["Path"], "bcl2fastqCheck.txt"), 'a+')
@@ -331,7 +387,7 @@ def postRunIndexChecker(myRun, successOrNot):
 		else:
 			readLength = "35"
 
-		#successOrNot = bcl2fastqHelper(myRun, readLength, sampleSheetName = "CorrectedSampleSheet.csv", loggerMessage = "Rerunning bcl2fastq on %s because of index complement issue.")
+		successOrNot = bcl2fastqHelper(myRun, readLength, sampleSheetName = "CorrectedSampleSheet.csv", loggerMessage = "Rerunning bcl2fastq on %s because of index complement issue.")
 
 
 	return successOrNot
@@ -380,7 +436,7 @@ def takeMeToBigBirdLogger( num2, massagers, num1 ):
 	for i in range(num2):
 		logLine = "\n" + logLine
 	
-	with open(keepPath + "takeMeToBigBirdLog.txt", "a+") as text_file:
+	with open(os.path.join(archivePath, "takeMeToBigBird_logs", "takeMeToBigBirdLog.txt"), "a+") as text_file:
 		text_file.write(logLine)
 	
 	return
@@ -402,7 +458,7 @@ def tenXIndexCheck (sampleSheetArray, sampleSheetPath, sampleStart, myRun):
 	tenx_test = sampleSheetArray[sampleStart + 1]
 	
 	try:
-		if dict_of_indices[tenx_test[index1]]:
+		if [tenx_test[index1]] in dict_of_indices:
 			takeMeToBigBirdLogger(0, 'I think this maybe a 10x run. Generating workflow_b indices for sample sheet.', 1)
 			myRun["libraryType"] = "10x"
 			
